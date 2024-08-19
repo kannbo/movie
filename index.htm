@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRYEN</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+        }
+        button {
+            margin: 5px;
+        }
+        video {
+            width: 100%; /* ビデオプレーヤーの幅を親要素に合わせる */
+            max-width: 1280px; /* ビデオプレーヤーの最大幅をHD解像度に設定 */
+            height: auto; /* 高さを自動調整 */
+            border: 1px solid #ddd; /* 任意で境界線を追加 */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); /* 任意で影を追加 */
+        }
+    </style>
+</head>
+<body>
+    <h1>ROKUWGa - 画面録画</h1>
+    <button id="start">録画開始</button>
+    <button id="stop" disabled>録画停止</button>
+    <a id="download" style="display: none">ダウンロード</a>
+    <video id="video" controls></video>
+    
+    <script>
+        let mediaRecorder;
+        let recordedChunks = [];
+        let mediaStream;
+
+        document.getElementById('start').addEventListener('click', () => {
+            navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    width: 1280, // HD解像度（幅）
+                    height: 720 // HD解像度（高さ）
+                }
+            })
+            .then(stream => {
+                mediaStream = stream; // ストリームを保存しておく
+                const options = {
+                    mimeType: 'video/webm; codecs=vp8', // コーデック設定
+                    videoBitsPerSecond: 2000000 // ビデオビットレートを2Mbpsに設定（HD画質向け）
+                };
+                mediaRecorder = new MediaRecorder(stream, options);
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    document.getElementById('video').src = url;
+                    
+                    // ダウンロードリンクの設定
+                    const downloadButton = document.getElementById('download');
+                    downloadButton.href = url;
+                    downloadButton.download = 'recording.webm'; // ダウンロードファイル名
+                    downloadButton.style.display = 'block'; // ダウンロードボタンを表示
+                    downloadButton.innerText = 'ダウンロード'; // ボタンのテキストを設定
+                };
+                mediaRecorder.start();
+                document.getElementById('start').disabled = true;
+                document.getElementById('stop').disabled = false;
+            })
+            .catch(error => {
+                console.error('Error accessing display media:', error);
+            });
+        });
+
+        document.getElementById('stop').addEventListener('click', () => {
+            mediaRecorder.stop();
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop()); // 画面共有を停止
+            }
+            document.getElementById('start').disabled = false;
+            document.getElementById('stop').disabled = true;
+        });
+    </script>
+</body>
+</html>
